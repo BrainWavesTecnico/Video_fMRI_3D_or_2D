@@ -15,7 +15,8 @@ full_FY = zeros(Nsamples, Nsignals);
 full_FY(freq_ind,:) = FY(freq_ind,:);
 
 tmp = full_FY;
-tmp(2:end,:) = tmp(2:end,:) + full_FY(end:-1:2,:);
+tmp(Nunique_points+1:end,:) = tmp(Nunique_points+1:end,:) + full_FY(Nsamples-Nunique_points+1:-1:2,:);
 
 X = real(ifft(tmp,'symmetric'));    % one IFFT call, all voxels at once
 end
+
