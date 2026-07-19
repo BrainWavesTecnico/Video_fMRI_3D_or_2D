@@ -30,7 +30,7 @@ function Video_fMRI_any(fMRI_signal, TR, file_label, opts, is_volume, planes)
 
 [X_size, Y_size, Z_size, Tmax]=size(fMRI_signal);
 fMRI_signal=double(reshape(fMRI_signal,[X_size*Y_size*Z_size, Tmax]));
-fMRI_signal=fMRI_signal-mean(fMRI_signal,2); % Remove the mean for filter
+fMRI_signal=detrend(fMRI_signal')'; % linear detrend along time (removes trend and mean) before filtering
 
 if opts.band_pass
     disp(['    Now bandpass filtering ' num2str(opts.high_pass) '-' num2str(opts.low_pass) ' Hz'])
