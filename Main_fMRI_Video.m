@@ -228,7 +228,7 @@ else
 end
 
 fMRI_signal_detrended=double(reshape(fMRI_signal,[X_size*Y_size*Z_size, Tmax]));
-fMRI_signal_detrended=fMRI_signal_detrended-mean(fMRI_signal_detrended,2);
+fMRI_signal_detrended=detrend(fMRI_signal_detrended')'; % linear detrend along time (removes trend and mean)
 
 N = size(fMRI_signal_detrended, 2);      % number of time points
 fs = 1/TR;                               % sampling frequency in Hz
