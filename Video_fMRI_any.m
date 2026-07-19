@@ -50,12 +50,12 @@ end
 
 % USER: Choose to bandpass filter
 
-band_pass=0;
+band_pass=1;
 if band_pass
     % Band pass filter the signals into FREQUENCY BANDS
     % [0.005-0.1]; [0.2-0.3]
     high_pass=0.01; % Lowest frequency boundary
-    low_pass=0.2; % HIGHEST FREQUENCY BOUNDARY
+    low_pass=0.1; % HIGHEST FREQUENCY BOUNDARY
 end
 % 
 addpath(genpath(general_path))
@@ -96,15 +96,21 @@ fMRI_signal=fMRI_signal-mean(fMRI_signal,2); % Remove the mean for filter
 
 if band_pass
     disp(['    Now bandpass filtering ' num2str(high_pass) '-' num2str(low_pass) ' Hz'])
-    for n=1:size(fMRI_signal,1)
-        fMRI_signal(n,:)=bandpass(fMRI_signal(n,:),[high_pass low_pass],1/TR);
-    end
+    fMRI_signal = bandpass_fft(fMRI_signal', [high_pass low_pass], 1/TR)';
+    % for n=1:size(fMRI_signal,1)
+    %     fMRI_signal(n,:)=bandpass(fMRI_signal(n,:),[high_pass low_pass],1/TR);
+    % end
     Boundary=round(10/TR); % To cut the first and last 10 seconds of the signals after band pass
     fMRI_signal=fMRI_signal(:,Boundary:end-Boundary);
     Tmax=size(fMRI_signal,2);
 end
 
 fMRI_signal=reshape(fMRI_signal,[X_size, Y_size, Z_size, Tmax]);
+
+% Create figure showing A) Mean Signal in each Voxel, STD in 
+figure('Position',[1 1 586 884])
+colormap(select_colormap)
+colorlimitbar = 5 * std(fMRI_signal(:));
 
 
 %% Generate video of signals
@@ -126,7 +132,7 @@ end
 % Run this if just one slice
 if N_dimensions==2
 
-for t=1:100; %Tmax
+for t=1:Tmax
 
     imagesc(imresize(squeeze(fMRI_signal(:,:,t)),2)',[-colorlimitbar colorlimitbar])
     axis image
@@ -135,7 +141,6 @@ for t=1:100; %Tmax
     title(['T= ' num2str(t*TR,'%2f') ' secs'])
     colormap(select_colormap)  % reapply after imagesc resets it
     drawnow                    % force complete rendering before capture
-   drawnow
     if save_video
         frame = print(gcf, '-RGBImage', '-r0');
         [h, w, ~] = size(frame);
