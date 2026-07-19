@@ -65,6 +65,15 @@ if opts.save_video
     videoModes.FrameRate = round(opts.video_acceleration*1/TR);
     videoModes.Quality = 100;
     open(videoModes);
+
+    % Frame size is fixed by the figure's pixel size and doesn't change
+    % across frames, so capture it and pre-allocate the white padding
+    % template once here rather than every iteration of the loops below.
+    frame0 = print(gcf, '-RGBImage', '-r0');
+    [h, w, ~] = size(frame0);
+    h2 = ceil(h/16)*16;
+    w2 = ceil(w/16)*16;
+    padded = 255*ones(h2, w2, 3, 'uint8');   % white pad, matches figure background
 end
 
 if ~is_volume
@@ -83,10 +92,6 @@ for t=1:Tmax
     drawnow                    % force complete rendering before capture
     if opts.save_video
         frame = print(gcf, '-RGBImage', '-r0');
-        [h, w, ~] = size(frame);
-        h2 = ceil(h/16)*16;
-        w2 = ceil(w/16)*16;
-        padded = 255*ones(h2, w2, 3, 'uint8');   % white pad, matches figure background
         padded(1:h, 1:w, :) = frame;
         writeVideo(videoModes, padded);
     else
@@ -108,7 +113,7 @@ for t=1:Tmax
         idx = round(sizes3(dim)/(n_show+3)*(s+1));
 
         subplot(1,n_show,s)
-        imagesc(get_plane_image(vol_t, dim, idx),[-colorlimitbar/2 colorlimitbar/2])
+        imagesc(imresize(get_plane_image(vol_t, dim, idx),2),[-colorlimitbar colorlimitbar])
         if dim ~= 3, axis xy; end
         axis image
         axis off
@@ -120,10 +125,6 @@ for t=1:Tmax
     drawnow                    % force complete rendering before capture
     if opts.save_video
         frame = print(gcf, '-RGBImage', '-r0');
-        [h, w, ~] = size(frame);
-        h2 = ceil(h/16)*16;
-        w2 = ceil(w/16)*16;
-        padded = 255*ones(h2, w2, 3, 'uint8');   % white pad, matches figure background
         padded(1:h, 1:w, :) = frame;
         writeVideo(videoModes, padded);
     else
@@ -147,7 +148,7 @@ for t=1:Tmax
             idx = round(sizes3(dim)/(n_slices+3)*(s+1));
 
             subplot(n_slices,n_planes,(s-1)*n_planes+p)
-            imagesc(get_plane_image(vol_t, dim, idx),[-colorlimitbar/2 colorlimitbar/2])
+            imagesc(imresize(get_plane_image(vol_t, dim, idx),2),[-colorlimitbar colorlimitbar])
             if dim ~= 3, axis xy; end
             axis image
             axis off
@@ -160,10 +161,6 @@ for t=1:Tmax
     drawnow                    % force complete rendering before capture
     if opts.save_video
         frame = print(gcf, '-RGBImage', '-r0');
-        [h, w, ~] = size(frame);
-        h2 = ceil(h/16)*16;
-        w2 = ceil(w/16)*16;
-        padded = 255*ones(h2, w2, 3, 'uint8');   % white pad, matches figure background
         padded(1:h, 1:w, :) = frame;
         writeVideo(videoModes, padded);
     else
