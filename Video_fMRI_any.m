@@ -16,8 +16,8 @@ function Video_fMRI_any(fMRI_signal, TR, file_label, opts)
 %                   save_video, Video_folder, video_acceleration
 %                   select_colormap
 %
-%  scripts by Joana Cabral, November 2025
-%  joana.barbosa.cabral@tecnico.ulisboa.pt
+%  scripts by Joana Cabral, July 2026
+%  joanabcabral@tecnico.ulisboa.pt
 %
 %%%%%%%%%%%
 

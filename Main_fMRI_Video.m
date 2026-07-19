@@ -8,8 +8,8 @@ function Main_fMRI_Video
 %  2) Plot mean, std and power spectrum of the raw signal
 %  3) Bandpass filter (optional) and generate the video
 %
-%  scripts by Joana Cabral, November 2025
-%  joana.barbosa.cabral@tecnico.ulisboa.pt
+%  scripts by Joana Cabral, July 2026
+%  joanabcabral@tecnico.ulisboa.pt
 %
 %%%%%%%%%%%
 
