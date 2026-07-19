@@ -180,14 +180,22 @@ elseif numel(planes) == 1
         imagesc(get_plane_image(mean_img, dim, idx))
         if dim ~= 3, axis xy; end
         axis image; axis off
-        title([planes(1).name ' ' num2str(s)])
+        if s==1
+            title({'Mean signal in each voxel', [planes(1).name ' ' num2str(s)]})
+        else
+            title([planes(1).name ' ' num2str(s)])
+        end
 
         subplot(3,n_show,n_show+s)
         img = get_plane_image(std_img, dim, idx);
         imagesc(img,[0 5*std(img(:))])
         if dim ~= 3, axis xy; end
         axis image; axis off
-        title(['STD ' num2str(s)])
+        if s==1
+            title({'STD in each voxel', ['STD ' num2str(s)]})
+        else
+            title(['STD ' num2str(s)])
+        end
     end
 
     psd_subplot = {3,n_show,(2*n_show+1):(3*n_show)};
