@@ -48,9 +48,3 @@ fMRI data is always stored as 4D (X, Y, Z, T). A "single slice" scan is simply o
 ### Isotropic vs. anisotropic volumes
 
 A typical multi-slice 2D EPI acquisition (no slice-timing correction) has much thicker voxels through the slice direction than in-plane, and slices within a volume are acquired at different times. Reformatting such data into the other two anatomical planes would mix data from different acquisition times and require interpolating across large gaps - so when `max(voxel size)/min(voxel size)` exceeds `opts.max_voxel_anisotropy`, only the plane that was actually acquired is shown (whichever of Sagittal/Axial/Coronal corresponds to the thick voxel dimension - not hardcoded to axial). Isotropic volumes show all three planes as usual.
-
-### Video encoding notes
-
-Frames are captured with `print(gcf,'-RGBImage','-r0')` (not `getframe`, which is a fragile screen-capture and is affected by window overlap/OS scaling) and padded to a multiple of 16 pixels in each dimension before being written - MATLAB's `'MPEG-4'` H.264 encoder can corrupt frames whose dimensions aren't macroblock-aligned.
-
-If a saved video looks wrong specifically in QuickTime Player but plays correctly in VLC, that's very likely a QuickTime-specific playback quirk rather than an actual corrupted file - worth double-checking in VLC before assuming the pipeline is broken.
