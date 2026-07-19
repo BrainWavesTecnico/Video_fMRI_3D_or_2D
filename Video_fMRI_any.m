@@ -54,21 +54,14 @@ band_pass=1;
 if band_pass
     % Band pass filter the signals into FREQUENCY BANDS
     % [0.005-0.1]; [0.2-0.3]
-    high_pass=0.01; % Lowest frequency boundary
-    low_pass=0.1; % HIGHEST FREQUENCY BOUNDARY
+    high_pass=0.02; % Lowest frequency boundary
+    low_pass=0.12; % HIGHEST FREQUENCY BOUNDARY
 end
 % 
 addpath(genpath(general_path))
 
 select_colormap='jet'; % 'jet'; %'bipolar'; % 'redblue'
 
-if band_pass
-    % This is to include the frequency band in the video name without dots
-    high_pass_label=num2str(high_pass);
-    high_pass_label(high_pass_label=='.')='p';
-    low_pass_label=num2str(low_pass);
-    low_pass_label(low_pass_label=='.')='p';
-end
 
 
 %% Read fMRI file, remove mean of each signal and compute the power spectrum
@@ -76,7 +69,7 @@ disp('%%%%% Video fMRI %%%%% ')
 disp(['- Now reading file ' file_name.name])
 disp(['    TR = ' num2str(TR) ' seconds.'])
 if band_pass
-    disp(['   Bandpass fitering ' num2str(high_pass) '-' num2str(low_pass) ' Hz'])
+    disp(['   Bandpass fiter ' num2str(high_pass) '-' num2str(low_pass) ' Hz'])
 else
     disp('    No bandpass fitering applied.')
 end
@@ -87,30 +80,61 @@ else
     disp('    Video not saved.')
 end
 
-fMRI_signal=niftiread([file_name.folder '/' file_name.name]);
+fMRI_signal=single(niftiread([file_name.folder '/' file_name.name]));
+
+
+%% Create figure showing:
+% A) Mean Signal in each Voxel, 
+% B) STD in each voxel,
+% C) Power spectrum in each voxel
+
+figure('Position',[ 428   159   978   831])
+colormap(hot)
+subplot(2,2,1)
+imagesc(imresize(mean(squeeze(fMRI_signal),3)',2))
+    axis image
+    axis off
+    axis xy
+    title('Mean signal in each voxel')
+subplot(2,2,2)
+image_to_plot=imresize(std(squeeze(fMRI_signal),[],3),2)';
+imagesc(image_to_plot,[0 5*std(image_to_plot(:))])
+    axis image
+    axis off
+    axis xy
+    title('Signal variance in each voxel')    
 
 [X_size, Y_size, Z_size, Tmax]=size(fMRI_signal);
 fMRI_signal=double(reshape(fMRI_signal,[X_size*Y_size*Z_size, Tmax]));
 fMRI_signal=fMRI_signal-mean(fMRI_signal,2); % Remove the mean for filter
 
+N = size(fMRI_signal, 2);      % number of time points
+fs = 1/TR;                     % sampling frequency in Hz
+freq = (0:N-1) * (fs/N);       % frequency for each FFT bin, 0 to fs
+Nhalf = floor(N/2) + 1;
+freq_half = freq(1:Nhalf);
+
+subplot(2,2,3:4)
+powerSpectrum = abs(fft(fMRI_signal, [], 2)).^2;   % FFT along time (dim 2)
+plot(freq_half, powerSpectrum(:,1:Nhalf)');
+Nyquist = fs/2;                 % = 1/(2*TR)
+xlim([0 Nyquist/2]);
+set(gca,'YScale', 'linear' );
+xlabel('Frequency (Hz)');
+ylabel('Power');
+title('Power Spectrum from each voxel');
+
+
 
 if band_pass
     disp(['    Now bandpass filtering ' num2str(high_pass) '-' num2str(low_pass) ' Hz'])
     fMRI_signal = bandpass_fft(fMRI_signal', [high_pass low_pass], 1/TR)';
-    % for n=1:size(fMRI_signal,1)
-    %     fMRI_signal(n,:)=bandpass(fMRI_signal(n,:),[high_pass low_pass],1/TR);
-    % end
     Boundary=round(10/TR); % To cut the first and last 10 seconds of the signals after band pass
     fMRI_signal=fMRI_signal(:,Boundary:end-Boundary);
     Tmax=size(fMRI_signal,2);
 end
 
 fMRI_signal=reshape(fMRI_signal,[X_size, Y_size, Z_size, Tmax]);
-
-% Create figure showing A) Mean Signal in each Voxel, STD in 
-figure('Position',[1 1 586 884])
-colormap(select_colormap)
-colorlimitbar = 5 * std(fMRI_signal(:));
 
 
 %% Generate video of signals
@@ -122,6 +146,11 @@ if save_video
     if ~band_pass
     videoModes = VideoWriter([Video_folder '/' file_name.name],'MPEG-4');
     else
+    % This is to include the frequency band in the video name without dots
+    high_pass_label=num2str(high_pass);
+    high_pass_label(high_pass_label=='.')='p';
+    low_pass_label=num2str(low_pass);
+    low_pass_label(low_pass_label=='.')='p';
     videoModes = VideoWriter([Video_folder '/' file_name.name '_Filt' high_pass_label '-' low_pass_label],'MPEG-4');
     end
     videoModes.FrameRate = round(video_acceleration*1/TR);
