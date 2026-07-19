@@ -13,7 +13,7 @@ function Video_fMRI_any(fMRI_signal, TR, file_label, opts)
 %   file_label  : base name used for the saved video file
 %   opts        : struct with fields
 %                   band_pass, high_pass, low_pass
-%                   save_video, Video_folder, video_acceleration
+%                   save_video, Figures_and_Videos_folder, video_acceleration
 %                   select_colormap
 %
 %  scripts by Joana Cabral, July 2026
@@ -42,20 +42,24 @@ fMRI_signal=reshape(fMRI_signal,[X_size, Y_size, Z_size, Tmax]);
 is_volume = ~any([X_size Y_size Z_size] == 1);
 
 %% Generate video of signals
-figure('Position',[  1     1   586   884])
+if ~is_volume
+    figure('Position',[158 103 1133 884])
+else
+    figure('units','normalized','outerposition',[0 0 1 1]) % full screen
+end
 colormap(opts.select_colormap)
 colorlimitbar=5*std(fMRI_signal(:));
 
 if opts.save_video
     if ~opts.band_pass
-        videoModes = VideoWriter([opts.Video_folder '/' file_label],'MPEG-4');
+        videoModes = VideoWriter([opts.Figures_and_Videos_folder '/' file_label],'MPEG-4');
     else
         % This is to include the frequency band in the video name without dots
         high_pass_label=num2str(opts.high_pass);
         high_pass_label(high_pass_label=='.')='p';
         low_pass_label=num2str(opts.low_pass);
         low_pass_label(low_pass_label=='.')='p';
-        videoModes = VideoWriter([opts.Video_folder '/' file_label '_Filt' high_pass_label '-' low_pass_label],'MPEG-4');
+        videoModes = VideoWriter([opts.Figures_and_Videos_folder '/' file_label '_Filt' high_pass_label '-' low_pass_label],'MPEG-4');
     end
     videoModes.FrameRate = round(opts.video_acceleration*1/TR);
     videoModes.Quality = 100;
@@ -137,5 +141,7 @@ if opts.save_video
     close(videoModes);
     disp('    Video saved.')
 end
+
+close(gcf)
 
 end
