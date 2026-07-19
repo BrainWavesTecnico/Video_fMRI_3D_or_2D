@@ -1,4 +1,4 @@
-function Video_fMRI_any(fMRI_signal, TR, file_label, opts)
+function Video_fMRI_any(fMRI_signal, TR, file_label, opts, is_volume)
 
 %%%%%
 %
@@ -15,6 +15,9 @@ function Video_fMRI_any(fMRI_signal, TR, file_label, opts)
 %                   band_pass, high_pass, low_pass
 %                   save_video, Figures_and_Videos_folder, video_acceleration
 %                   select_colormap
+%   is_volume   : true if fMRI_signal is a full volume, false if a single
+%                 slice (one of X, Y, Z equals 1) - computed once by the
+%                 caller from the data shape.
 %
 %  scripts by Joana Cabral, July 2026
 %  joanabcabral@tecnico.ulisboa.pt
@@ -34,12 +37,6 @@ if opts.band_pass
 end
 
 fMRI_signal=reshape(fMRI_signal,[X_size, Y_size, Z_size, Tmax]);
-
-% fMRI data is always 4D (X,Y,Z,T). A single-slice ("2D") scan is simply
-% one where one of the first three dimensions equals 1 - could be X, Y or
-% Z depending on the slice orientation (SAG/COR/AX), so we detect it
-% directly from the data shape instead of a manual flag.
-is_volume = ~any([X_size Y_size Z_size] == 1);
 
 %% Generate video of signals
 if ~is_volume

@@ -89,23 +89,82 @@ fMRI_signal=single(niftiread([file_name.folder '/' file_name.name]));
 
 [X_size, Y_size, Z_size, Tmax]=size(fMRI_signal);
 
-fig_static = figure('Position',[ 428   159   978   831]);
+% fMRI data is always 4D (X,Y,Z,T). A single-slice ("2D") scan is simply
+% one where one of the first three dimensions equals 1 - could be X, Y or
+% Z depending on the slice orientation (SAG/COR/AX), so we detect it
+% directly from the data shape instead of a manual flag. Computed once
+% here so it can also determine the layout of the static figure below.
+is_volume = ~any([X_size Y_size Z_size] == 1);
+
+if ~is_volume
+    fig_static = figure('Position',[ 428   159   978   831]);
+else
+    fig_static = figure('units','normalized','outerposition',[0 0 1 1]); % full screen
+end
 colormap(jet)
 
-subplot(2,2,1)
-imagesc(imresize(mean(squeeze(fMRI_signal),3)',2))
-    axis image
-    axis off
-    axis xy
-    title('Mean signal in each voxel')
+mean_img = squeeze(mean(fMRI_signal,4));   % average over time
+std_img  = squeeze(std(fMRI_signal,[],4)); % std over time
 
-subplot(2,2,2)
-image_to_plot=imresize(std(squeeze(fMRI_signal),[],3),2)';
-imagesc(image_to_plot,[0 5*std(image_to_plot(:))])
-    axis image
-    axis off
-    axis xy
-    title('Signal variance in each voxel')
+if ~is_volume
+    subplot(2,2,1)
+    imagesc(imresize(mean_img',2))
+        axis image
+        axis off
+        axis xy
+        title('Mean signal in each voxel')
+
+    subplot(2,2,2)
+    image_to_plot=imresize(std_img',2);
+    imagesc(image_to_plot,[0 5*std(image_to_plot(:))])
+        axis image
+        axis off
+        axis xy
+        title('Signal variance in each voxel')
+
+    psd_subplot = {2,2,3:4};
+else
+    mid_x = round(X_size/2);
+    mid_y = round(Y_size/2);
+    mid_z = round(Z_size/2);
+
+    % Row 1: mean, Row 2: std. Columns: sagittal (vary X), axial (vary Z), coronal (vary Y)
+    % Orientation (transpose / axis xy) matches the volume video below.
+    subplot(3,3,1)
+    imagesc(squeeze(mean_img(mid_x,:,:))')
+        axis xy; axis image; axis off
+        title('Mean - Sagittal')
+
+    subplot(3,3,2)
+    imagesc(squeeze(mean_img(:,:,mid_z)))
+        axis image; axis off
+        title('Mean - Axial')
+
+    subplot(3,3,3)
+    imagesc(squeeze(mean_img(:,mid_y,:))')
+        axis xy; axis image; axis off
+        title('Mean - Coronal')
+
+    subplot(3,3,4)
+    img = squeeze(std_img(mid_x,:,:))';
+    imagesc(img,[0 5*std(img(:))])
+        axis xy; axis image; axis off
+        title('STD - Sagittal')
+
+    subplot(3,3,5)
+    img = squeeze(std_img(:,:,mid_z));
+    imagesc(img,[0 5*std(img(:))])
+        axis image; axis off
+        title('STD - Axial')
+
+    subplot(3,3,6)
+    img = squeeze(std_img(:,mid_y,:))';
+    imagesc(img,[0 5*std(img(:))])
+        axis xy; axis image; axis off
+        title('STD - Coronal')
+
+    psd_subplot = {3,3,7:9};
+end
 
 fMRI_signal_detrended=double(reshape(fMRI_signal,[X_size*Y_size*Z_size, Tmax]));
 fMRI_signal_detrended=fMRI_signal_detrended-mean(fMRI_signal_detrended,2);
@@ -116,7 +175,7 @@ freq = (0:N-1) * (fs/N);                 % frequency for each FFT bin, 0 to fs
 Nhalf = floor(N/2) + 1;
 freq_half = freq(1:Nhalf);
 
-subplot(2,2,3:4)
+subplot(psd_subplot{:})
 powerSpectrum = abs(fft(fMRI_signal_detrended, [], 2)).^2;   % FFT along time (dim 2)
 plot(freq_half, powerSpectrum(:,1:Nhalf)');
 Nyquist = fs/2;                 % = 1/(2*TR)
@@ -132,7 +191,7 @@ close(fig_static)
 
 %% 3) Bandpass filter (optional) and generate the video
 
-Video_fMRI_any(fMRI_signal, TR, file_name.name, opts);
+Video_fMRI_any(fMRI_signal, TR, file_name.name, opts, is_volume);
 
 end
 
