@@ -1,134 +1,33 @@
-function Video_fMRI_any
+function Video_fMRI_any(fMRI_signal, TR, file_label, opts)
 
 %%%%%
 %
 %  VIDEO OF fMRI IN SELECTED BAND
-%  Choose the scan and the band
-%  Load the fMRI data, filter and generate video.
+%  Bandpass filter (optional) the fMRI signal and generate a video of its
+%  temporal evolution. Works for a single slice or a full volume.
 %
-%  Works for Single Slice or Volume
+%  Inputs:
+%   fMRI_signal : X x Y x Z x T array. fMRI data is always 4D; a single
+%                 slice is simply an array where one of X, Y, Z equals 1.
+%   TR          : repetition time, in seconds
+%   file_label  : base name used for the saved video file
+%   opts        : struct with fields
+%                   band_pass, high_pass, low_pass
+%                   save_video, Video_folder, video_acceleration
+%                   select_colormap
 %
 %  scripts by Joana Cabral, November 2025
 %  joana.barbosa.cabral@tecnico.ulisboa.pt
 %
-%
 %%%%%%%%%%%
-
-% USER: Determine folder and scan name:
-
-general_path='/Users/user/Documents/Research/CSF-MIND/';
-
-tag_name='ep2d_bold_FLIP_18_SAG';
-N_dimensions=2; % Or 2D or 3D if volume
-
-% Find the fMRI scan in format .nii with these properties in the NIFTI folder
-file_name = dir(fullfile(general_path, ['/**/*' tag_name '*.nii.gz']));
-
-json_name = strrep(file_name.name, '.nii.gz', '.json');
-json_path = fullfile(file_name.folder, json_name);
-
-
-fid = fopen(json_path);
-if fid == -1
-    warning('Could not find JSON file: %s', json_path);
-    TR = input('Please enter manually the TR in seconds: ');
-else
-    raw = fread(fid,inf);
-    str = char(raw');
-    fclose(fid);
-    Scan_info = jsondecode(str);
-    TR = Scan_info.RepetitionTime;
-end
-
-% USER: Chose to save video (only after debugging)
-save_video=1; % Choose 1 to save, otherwise 0
-if save_video
-    video_acceleration=1; % If 1, video is saved at TR resolution. faster >1, slower <1
-    % The folder where the videos will be saved
-    Video_folder='/Users/user/Documents/Research/CSF-MIND/Videos/';
-end
-
-% USER: Choose to bandpass filter
-
-band_pass=1;
-if band_pass
-    % Band pass filter the signals into FREQUENCY BANDS
-    % [0.005-0.1]; [0.2-0.3]
-    high_pass=0.02; % Lowest frequency boundary
-    low_pass=0.12; % HIGHEST FREQUENCY BOUNDARY
-end
-% 
-addpath(genpath(general_path))
-
-select_colormap='jet'; % 'jet'; %'bipolar'; % 'redblue'
-
-
-
-%% Read fMRI file, remove mean of each signal and compute the power spectrum
-disp('%%%%% Video fMRI %%%%% ')
-disp(['- Now reading file ' file_name.name])
-disp(['    TR = ' num2str(TR) ' seconds.'])
-if band_pass
-    disp(['   Bandpass fiter ' num2str(high_pass) '-' num2str(low_pass) ' Hz'])
-else
-    disp('    No bandpass fitering applied.')
-end
-
-if save_video
-    disp(['    Video saved to ' Video_folder])
-else
-    disp('    Video not saved.')
-end
-
-fMRI_signal=single(niftiread([file_name.folder '/' file_name.name]));
-
-
-%% Create figure showing:
-% A) Mean Signal in each Voxel, 
-% B) STD in each voxel,
-% C) Power spectrum in each voxel
-
-figure('Position',[ 428   159   978   831])
-colormap(hot)
-subplot(2,2,1)
-imagesc(imresize(mean(squeeze(fMRI_signal),3)',2))
-    axis image
-    axis off
-    axis xy
-    title('Mean signal in each voxel')
-subplot(2,2,2)
-image_to_plot=imresize(std(squeeze(fMRI_signal),[],3),2)';
-imagesc(image_to_plot,[0 5*std(image_to_plot(:))])
-    axis image
-    axis off
-    axis xy
-    title('Signal variance in each voxel')    
 
 [X_size, Y_size, Z_size, Tmax]=size(fMRI_signal);
 fMRI_signal=double(reshape(fMRI_signal,[X_size*Y_size*Z_size, Tmax]));
 fMRI_signal=fMRI_signal-mean(fMRI_signal,2); % Remove the mean for filter
 
-N = size(fMRI_signal, 2);      % number of time points
-fs = 1/TR;                     % sampling frequency in Hz
-freq = (0:N-1) * (fs/N);       % frequency for each FFT bin, 0 to fs
-Nhalf = floor(N/2) + 1;
-freq_half = freq(1:Nhalf);
-
-subplot(2,2,3:4)
-powerSpectrum = abs(fft(fMRI_signal, [], 2)).^2;   % FFT along time (dim 2)
-plot(freq_half, powerSpectrum(:,1:Nhalf)');
-Nyquist = fs/2;                 % = 1/(2*TR)
-xlim([0 Nyquist/2]);
-set(gca,'YScale', 'linear' );
-xlabel('Frequency (Hz)');
-ylabel('Power');
-title('Power Spectrum from each voxel');
-
-
-
-if band_pass
-    disp(['    Now bandpass filtering ' num2str(high_pass) '-' num2str(low_pass) ' Hz'])
-    fMRI_signal = bandpass_fft(fMRI_signal', [high_pass low_pass], 1/TR)';
+if opts.band_pass
+    disp(['    Now bandpass filtering ' num2str(opts.high_pass) '-' num2str(opts.low_pass) ' Hz'])
+    fMRI_signal = bandpass_fft(fMRI_signal', [opts.high_pass opts.low_pass], 1/TR)';
     Boundary=round(10/TR); % To cut the first and last 10 seconds of the signals after band pass
     fMRI_signal=fMRI_signal(:,Boundary:end-Boundary);
     Tmax=size(fMRI_signal,2);
@@ -136,41 +35,48 @@ end
 
 fMRI_signal=reshape(fMRI_signal,[X_size, Y_size, Z_size, Tmax]);
 
+% fMRI data is always 4D (X,Y,Z,T). A single-slice ("2D") scan is simply
+% one where one of the first three dimensions equals 1 - could be X, Y or
+% Z depending on the slice orientation (SAG/COR/AX), so we detect it
+% directly from the data shape instead of a manual flag.
+is_volume = ~any([X_size Y_size Z_size] == 1);
 
 %% Generate video of signals
 figure('Position',[  1     1   586   884])
-colormap(select_colormap)
+colormap(opts.select_colormap)
 colorlimitbar=5*std(fMRI_signal(:));
 
-if save_video
-    if ~band_pass
-    videoModes = VideoWriter([Video_folder '/' file_name.name],'MPEG-4');
+if opts.save_video
+    if ~opts.band_pass
+        videoModes = VideoWriter([opts.Video_folder '/' file_label],'MPEG-4');
     else
-    % This is to include the frequency band in the video name without dots
-    high_pass_label=num2str(high_pass);
-    high_pass_label(high_pass_label=='.')='p';
-    low_pass_label=num2str(low_pass);
-    low_pass_label(low_pass_label=='.')='p';
-    videoModes = VideoWriter([Video_folder '/' file_name.name '_Filt' high_pass_label '-' low_pass_label],'MPEG-4');
+        % This is to include the frequency band in the video name without dots
+        high_pass_label=num2str(opts.high_pass);
+        high_pass_label(high_pass_label=='.')='p';
+        low_pass_label=num2str(opts.low_pass);
+        low_pass_label(low_pass_label=='.')='p';
+        videoModes = VideoWriter([opts.Video_folder '/' file_label '_Filt' high_pass_label '-' low_pass_label],'MPEG-4');
     end
-    videoModes.FrameRate = round(video_acceleration*1/TR);
+    videoModes.FrameRate = round(opts.video_acceleration*1/TR);
     videoModes.Quality = 100;
     open(videoModes);
 end
 
+if ~is_volume
 % Run this if just one slice
-if N_dimensions==2
+% squeeze(fMRI_signal(:,:,:,t)) collapses whichever spatial dimension is
+% singleton, regardless of orientation (SAG/COR/AX)
 
 for t=1:Tmax
 
-    imagesc(imresize(squeeze(fMRI_signal(:,:,t)),2)',[-colorlimitbar colorlimitbar])
+    imagesc(imresize(squeeze(fMRI_signal(:,:,:,t)),2)',[-colorlimitbar colorlimitbar])
     axis image
     axis off
     axis xy
     title(['T= ' num2str(t*TR,'%2f') ' secs'])
-    colormap(select_colormap)  % reapply after imagesc resets it
+    colormap(opts.select_colormap)  % reapply after imagesc resets it
     drawnow                    % force complete rendering before capture
-    if save_video
+    if opts.save_video
         frame = print(gcf, '-RGBImage', '-r0');
         [h, w, ~] = size(frame);
         h2 = ceil(h/16)*16;
@@ -183,12 +89,7 @@ for t=1:Tmax
     end
 end
 
-if save_video
-    close(videoModes);
-    disp('    Video saved.')
-end
-
-elseif N_dimensions==3
+else
 % Run this if you have a 3D volume over time
 
 n_slices=3;
@@ -215,9 +116,9 @@ for t=1:Tmax
         axis image
         axis off
     end
-    colormap(select_colormap)  % reapply after imagesc resets it
+    colormap(opts.select_colormap)  % reapply after imagesc resets it
     drawnow                    % force complete rendering before capture
-    if save_video
+    if opts.save_video
         frame = print(gcf, '-RGBImage', '-r0');
         [h, w, ~] = size(frame);
         h2 = ceil(h/16)*16;
@@ -230,9 +131,11 @@ for t=1:Tmax
     end
 end
 
-if save_video
-    close(videoModes); %close the file
+end
+
+if opts.save_video
+    close(videoModes);
+    disp('    Video saved.')
 end
 
 end
-
