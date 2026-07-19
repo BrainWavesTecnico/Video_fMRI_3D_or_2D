@@ -51,6 +51,12 @@ end
 colormap(opts.select_colormap)
 colorlimitbar=5*std(fMRI_signal(:));
 
+if opts.band_pass
+    band_label = ['Bandpass ' num2str(opts.high_pass) '-' num2str(opts.low_pass) 'Hz'];
+else
+    band_label = 'No filter';
+end
+
 if opts.save_video
     if ~opts.band_pass
         videoModes = VideoWriter([opts.Figures_and_Videos_folder '/' file_label],'MPEG-4');
@@ -87,7 +93,7 @@ for t=1:Tmax
     axis image
     axis off
     axis xy
-    title(['T= ' num2str(t*TR,'%.2f') ' secs'],'FontSize',22)
+    title({band_label, ['T= ' num2str(t*TR,'%.2f') ' secs']},'FontSize',22)
     colormap(opts.select_colormap)  % reapply after imagesc resets it
     drawnow                    % force complete rendering before capture
     if opts.save_video
@@ -118,7 +124,7 @@ for t=1:Tmax
         axis image
         axis off
         if s==1
-            title(['T= ' num2str(t*TR,'%.2f') ' secs'],'FontSize',22)
+            title({band_label, ['T= ' num2str(t*TR,'%.2f') ' secs']},'FontSize',22)
         end
     end
     colormap(opts.select_colormap)  % reapply after imagesc resets it
@@ -153,7 +159,7 @@ for t=1:Tmax
             axis image
             axis off
             if s==1 && p==1
-                title(['T= ' num2str(t*TR,'%.2f') ' secs'],'FontSize',22)
+                title({band_label, ['T= ' num2str(t*TR,'%.2f') ' secs']},'FontSize',22)
             end
         end
     end
