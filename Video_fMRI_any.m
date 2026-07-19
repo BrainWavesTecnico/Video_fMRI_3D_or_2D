@@ -46,7 +46,7 @@ fMRI_signal=reshape(fMRI_signal,[X_size, Y_size, Z_size, Tmax]);
 if ~is_volume
     figure('Position',[158 103 1133 884])
 else
-    figure('units','normalized','outerposition',[0 0 1 1]) % full screen
+    figure('units','normalized','outerposition',[0 0 1 0.5]) % keep width, half height
 end
 colormap(opts.select_colormap)
 colorlimitbar=5*std(fMRI_signal(:));
@@ -78,7 +78,44 @@ for t=1:Tmax
     axis image
     axis off
     axis xy
-    title(['T= ' num2str(t*TR,'%2f') ' secs'])
+    title(['T= ' num2str(t*TR,'%.2f') ' secs'],'FontSize',22)
+    colormap(opts.select_colormap)  % reapply after imagesc resets it
+    drawnow                    % force complete rendering before capture
+    if opts.save_video
+        frame = print(gcf, '-RGBImage', '-r0');
+        [h, w, ~] = size(frame);
+        h2 = ceil(h/16)*16;
+        w2 = ceil(w/16)*16;
+        padded = 255*ones(h2, w2, 3, 'uint8');   % white pad, matches figure background
+        padded(1:h, 1:w, :) = frame;
+        writeVideo(videoModes, padded);
+    else
+        pause(0.1)
+    end
+end
+
+elseif numel(planes) == 1
+% Anisotropic volume: only the acquired plane is meaningful. Show
+% several equidistant slices of it in a single row.
+
+n_show = opts.n_slices_single_plane;
+dim = planes(1).dim;
+sizes3=[X_size Y_size Z_size];
+
+for t=1:Tmax
+    vol_t = squeeze(fMRI_signal(:,:,:,t));
+    for s=1:n_show
+        idx = round(sizes3(dim)/(n_show+3)*(s+1));
+
+        subplot(1,n_show,s)
+        imagesc(get_plane_image(vol_t, dim, idx),[-colorlimitbar/2 colorlimitbar/2])
+        if dim ~= 3, axis xy; end
+        axis image
+        axis off
+        if s==1
+            title(['T= ' num2str(t*TR,'%.2f') ' secs'],'FontSize',22)
+        end
+    end
     colormap(opts.select_colormap)  % reapply after imagesc resets it
     drawnow                    % force complete rendering before capture
     if opts.save_video
@@ -95,10 +132,8 @@ for t=1:Tmax
 end
 
 else
-% Run this if you have a 3D volume over time.
-% Shows n_slices depth samples (rows) for each plane in `planes`
-% (columns) - one column if voxels are anisotropic (only the acquired
-% plane is meaningful), three (Sagittal/Axial/Coronal) if isotropic.
+% Isotropic volume: n_slices depth samples (rows) for each of the 3
+% planes (columns) - unchanged from before.
 
 n_slices=3;
 n_planes=numel(planes);
@@ -117,7 +152,7 @@ for t=1:Tmax
             axis image
             axis off
             if s==1 && p==1
-                title(['T= ' num2str(round(t*TR*10)/10,'%2f') ' secs'])
+                title(['T= ' num2str(t*TR,'%.2f') ' secs'],'FontSize',22)
             end
         end
     end
