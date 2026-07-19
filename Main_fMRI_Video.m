@@ -45,6 +45,15 @@ end
 
 opts.select_colormap='jet'; % 'jet'; %'bipolar'; % 'redblue'
 
+% USER: threshold for treating a volume's voxels as isotropic. If the
+% ratio between the largest and smallest voxel dimension exceeds this,
+% the scan is treated as anisotropic (thick slices, as in a typical
+% single-band 2D EPI acquisition) and only the plane that was actually
+% acquired is shown - the other two views would mix data recorded at
+% different times (no slice-timing correction) and need interpolation
+% across large gaps between slices.
+opts.max_voxel_anisotropy = 1.5;
+
 % Find all fMRI scans in format .nii with these properties in the NIFTI folder
 file_list = dir(fullfile(general_path, ['/**/*' tag_name '*.nii.gz']));
 
@@ -96,6 +105,25 @@ fMRI_signal=single(niftiread([file_name.folder '/' file_name.name]));
 % here so it can also determine the layout of the static figure below.
 is_volume = ~any([X_size Y_size Z_size] == 1);
 
+% Sagittal/Axial/Coronal plane definitions: which array dimension is
+% held fixed for each view (see get_plane_image.m for orientation).
+plane_defs = struct('name',{'Sagittal','Axial','Coronal'},'dim',{1,3,2});
+
+if is_volume
+    nii_info = niftiinfo([file_name.folder '/' file_name.name]);
+    voxel_size = nii_info.PixelDimensions(1:3);
+    [~, thick_dim] = max(voxel_size);
+    is_isotropic = (max(voxel_size)/min(voxel_size)) < opts.max_voxel_anisotropy;
+    if is_isotropic
+        planes = plane_defs;
+    else
+        planes = plane_defs([plane_defs.dim]==thick_dim);
+        disp(['    Anisotropic voxels (' num2str(voxel_size,'%.2f  ') 'mm) - showing only the ' planes(1).name ' plane.'])
+    end
+else
+    planes = plane_defs([]); % unused for a single slice
+end
+
 if ~is_volume
     fig_static = figure('Position',[ 428   159   978   831]);
 else
@@ -124,46 +152,30 @@ if ~is_volume
 
     psd_subplot = {2,2,3:4};
 else
-    mid_x = round(X_size/2);
-    mid_y = round(Y_size/2);
-    mid_z = round(Z_size/2);
+    n_planes = numel(planes);
+    mid_idx = round([X_size Y_size Z_size]/2);
 
-    % Row 1: mean, Row 2: std. Columns: sagittal (vary X), axial (vary Z), coronal (vary Y)
+    % Row 1: mean, Row 2: std, one column per plane shown.
     % Orientation (transpose / axis xy) matches the volume video below.
-    subplot(3,3,1)
-    imagesc(squeeze(mean_img(mid_x,:,:))')
-        axis xy; axis image; axis off
-        title('Mean - Sagittal')
+    for p = 1:n_planes
+        dim = planes(p).dim;
+        idx = mid_idx(dim);
 
-    subplot(3,3,2)
-    imagesc(squeeze(mean_img(:,:,mid_z)))
+        subplot(3,n_planes,p)
+        imagesc(get_plane_image(mean_img, dim, idx))
+        if dim ~= 3, axis xy; end
         axis image; axis off
-        title('Mean - Axial')
+        title(['Mean - ' planes(p).name])
 
-    subplot(3,3,3)
-    imagesc(squeeze(mean_img(:,mid_y,:))')
-        axis xy; axis image; axis off
-        title('Mean - Coronal')
-
-    subplot(3,3,4)
-    img = squeeze(std_img(mid_x,:,:))';
-    imagesc(img,[0 5*std(img(:))])
-        axis xy; axis image; axis off
-        title('STD - Sagittal')
-
-    subplot(3,3,5)
-    img = squeeze(std_img(:,:,mid_z));
-    imagesc(img,[0 5*std(img(:))])
+        subplot(3,n_planes,n_planes+p)
+        img = get_plane_image(std_img, dim, idx);
+        imagesc(img,[0 5*std(img(:))])
+        if dim ~= 3, axis xy; end
         axis image; axis off
-        title('STD - Axial')
+        title(['STD - ' planes(p).name])
+    end
 
-    subplot(3,3,6)
-    img = squeeze(std_img(:,mid_y,:))';
-    imagesc(img,[0 5*std(img(:))])
-        axis xy; axis image; axis off
-        title('STD - Coronal')
-
-    psd_subplot = {3,3,7:9};
+    psd_subplot = {3,n_planes,(2*n_planes+1):(3*n_planes)};
 end
 
 fMRI_signal_detrended=double(reshape(fMRI_signal,[X_size*Y_size*Z_size, Tmax]));
@@ -191,7 +203,7 @@ close(fig_static)
 
 %% 3) Bandpass filter (optional) and generate the video
 
-Video_fMRI_any(fMRI_signal, TR, file_name.name, opts, is_volume);
+Video_fMRI_any(fMRI_signal, TR, file_name.name, opts, is_volume, planes);
 
 end
 

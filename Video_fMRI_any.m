@@ -1,4 +1,4 @@
-function Video_fMRI_any(fMRI_signal, TR, file_label, opts, is_volume)
+function Video_fMRI_any(fMRI_signal, TR, file_label, opts, is_volume, planes)
 
 %%%%%
 %
@@ -18,6 +18,10 @@ function Video_fMRI_any(fMRI_signal, TR, file_label, opts, is_volume)
 %   is_volume   : true if fMRI_signal is a full volume, false if a single
 %                 slice (one of X, Y, Z equals 1) - computed once by the
 %                 caller from the data shape.
+%   planes      : struct array (name, dim) of the planes to show for a
+%                 volume - one plane if voxels are anisotropic, three
+%                 (Sagittal/Axial/Coronal) if isotropic. Unused if
+%                 is_volume is false. See get_plane_image.m.
 %
 %  scripts by Joana Cabral, July 2026
 %  joanabcabral@tecnico.ulisboa.pt
@@ -91,31 +95,31 @@ for t=1:Tmax
 end
 
 else
-% Run this if you have a 3D volume over time
+% Run this if you have a 3D volume over time.
+% Shows n_slices depth samples (rows) for each plane in `planes`
+% (columns) - one column if voxels are anisotropic (only the acquired
+% plane is meaningful), three (Sagittal/Axial/Coronal) if isotropic.
 
 n_slices=3;
+n_planes=numel(planes);
+sizes3=[X_size Y_size Z_size];
 
 for t=1:Tmax
+    vol_t = squeeze(fMRI_signal(:,:,:,t));
     for s=1:n_slices
-        subplot(n_slices,3,(s-1)*3+1)
-        imagesc(squeeze(fMRI_signal(:,:,round(Z_size/(n_slices+3)*(s+1)),t)),[-colorlimitbar/2 colorlimitbar/2])
-        axis image
-        axis off
-        if s==1
-        title(['T= ' num2str(round(t*TR*10)/10,'%2f') ' secs'])
+        for p=1:n_planes
+            dim = planes(p).dim;
+            idx = round(sizes3(dim)/(n_slices+3)*(s+1));
+
+            subplot(n_slices,n_planes,(s-1)*n_planes+p)
+            imagesc(get_plane_image(vol_t, dim, idx),[-colorlimitbar/2 colorlimitbar/2])
+            if dim ~= 3, axis xy; end
+            axis image
+            axis off
+            if s==1 && p==1
+                title(['T= ' num2str(round(t*TR*10)/10,'%2f') ' secs'])
+            end
         end
-
-        subplot(n_slices,3,(s-1)*3+2)
-        imagesc(squeeze(fMRI_signal(:,round(Y_size/(n_slices+3)*(s+1)),:,t))',[-colorlimitbar/2 colorlimitbar/2])
-        axis xy
-        axis image
-        axis off
-
-        subplot(n_slices,3,(s-1)*3+3)
-        imagesc(squeeze(fMRI_signal(round(X_size/(n_slices+3)*(s+1)),:,:,t))',[-colorlimitbar/2 colorlimitbar/2])
-        axis xy
-        axis image
-        axis off
     end
     colormap(opts.select_colormap)  % reapply after imagesc resets it
     drawnow                    % force complete rendering before capture
