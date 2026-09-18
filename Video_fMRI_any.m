@@ -57,6 +57,15 @@ else
     band_label = 'No filter';
 end
 
+% Frame size is fixed by the figure's pixel size and doesn't change
+% across frames, so it only needs to be measured once. It's measured
+% from the first REAL rendered frame (after content + drawnow) inside
+% the loops below, not here: right after figure creation the OS window
+% manager may not have finished resizing the window to its target size
+% yet, which produced an undersized capture and a later dimension
+% mismatch. videoModes stays empty when opts.save_video is false.
+h = []; w = []; padded = []; videoModes = [];
+
 if opts.save_video
     if ~opts.band_pass
         videoModes = VideoWriter([opts.Figures_and_Videos_folder '/' file_label],'MPEG-4');
@@ -71,15 +80,6 @@ if opts.save_video
     videoModes.FrameRate = round(opts.video_acceleration*1/TR);
     videoModes.Quality = 100;
     open(videoModes);
-
-    % Frame size is fixed by the figure's pixel size and doesn't change
-    % across frames, so capture it and pre-allocate the white padding
-    % template once here rather than every iteration of the loops below.
-    frame0 = print(gcf, '-RGBImage', '-r0');
-    [h, w, ~] = size(frame0);
-    h2 = ceil(h/16)*16;
-    w2 = ceil(w/16)*16;
-    padded = 255*ones(h2, w2, 3, 'uint8');   % white pad, matches figure background
 end
 
 if ~is_volume
@@ -94,15 +94,7 @@ for t=1:Tmax
     axis off
     axis xy
     title({band_label, ['T= ' num2str(t*TR,'%.2f') ' secs']},'FontSize',22)
-    colormap(opts.select_colormap)  % reapply after imagesc resets it
-    drawnow                    % force complete rendering before capture
-    if opts.save_video
-        frame = print(gcf, '-RGBImage', '-r0');
-        padded(1:h, 1:w, :) = frame;
-        writeVideo(videoModes, padded);
-    else
-        pause(0.1)
-    end
+    [h, w, padded] = capture_and_write_frame(opts, videoModes, h, w, padded);
 end
 
 elseif numel(planes) == 1
@@ -127,15 +119,7 @@ for t=1:Tmax
             title({band_label, ['T= ' num2str(t*TR,'%.2f') ' secs']},'FontSize',22)
         end
     end
-    colormap(opts.select_colormap)  % reapply after imagesc resets it
-    drawnow                    % force complete rendering before capture
-    if opts.save_video
-        frame = print(gcf, '-RGBImage', '-r0');
-        padded(1:h, 1:w, :) = frame;
-        writeVideo(videoModes, padded);
-    else
-        pause(0.1)
-    end
+    [h, w, padded] = capture_and_write_frame(opts, videoModes, h, w, padded);
 end
 
 else
@@ -163,15 +147,7 @@ for t=1:Tmax
             end
         end
     end
-    colormap(opts.select_colormap)  % reapply after imagesc resets it
-    drawnow                    % force complete rendering before capture
-    if opts.save_video
-        frame = print(gcf, '-RGBImage', '-r0');
-        padded(1:h, 1:w, :) = frame;
-        writeVideo(videoModes, padded);
-    else
-        pause(0.1)
-    end
+    [h, w, padded] = capture_and_write_frame(opts, videoModes, h, w, padded);
 end
 
 end
@@ -183,4 +159,26 @@ end
 
 close(gcf)
 
+end
+
+function [h, w, padded] = capture_and_write_frame(opts, videoModes, h, w, padded)
+% Reapply colormap (imagesc resets it) and force complete rendering
+% before capturing. On the first call, h/w/padded are derived from this
+% real, fully-rendered frame rather than a premature capture, so the
+% padding template always matches the actual frame size.
+colormap(opts.select_colormap)
+drawnow
+if ~opts.save_video
+    pause(0.1)
+    return
+end
+frame = print(gcf, '-RGBImage', '-r0');
+if isempty(h)
+    [h, w, ~] = size(frame);
+    h2 = ceil(h/16)*16;
+    w2 = ceil(w/16)*16;
+    padded = 255*ones(h2, w2, 3, 'uint8');   % white pad, matches figure background
+end
+padded(1:h, 1:w, :) = frame;
+writeVideo(videoModes, padded);
 end
