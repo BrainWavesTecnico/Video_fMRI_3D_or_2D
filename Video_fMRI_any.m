@@ -97,7 +97,7 @@ for t=1:Tmax
     [h, w, padded] = capture_and_write_frame(opts, videoModes, h, w, padded);
 end
 
-elseif numel(planes) == 1
+elseif isscalar(planes)
 % Anisotropic volume: only the acquired plane is meaningful. Show
 % several equidistant slices of it in a single row.
 
