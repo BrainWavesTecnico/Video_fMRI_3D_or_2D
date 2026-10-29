@@ -15,6 +15,8 @@ function Video_fMRI_any(fMRI_signal, TR, file_label, opts, is_volume, planes)
 %                   band_pass, high_pass, low_pass
 %                   save_video, Figures_and_Videos_folder, video_acceleration
 %                   select_colormap
+%                   smoothing_sigma (std in voxels of the Gaussian filter
+%                   applied to each frame with imgaussfilt; 0 for none)
 %   is_volume   : true if fMRI_signal is a full volume, false if a single
 %                 slice (one of X, Y, Z equals 1) - computed once by the
 %                 caller from the data shape.
@@ -50,6 +52,13 @@ else
 end
 colormap(opts.select_colormap)
 colorlimitbar=5*std(fMRI_signal(:));
+
+% Spatial smoothing of each frame (2D Gaussian filter, std in voxels)
+if isfield(opts,'smoothing_sigma') && opts.smoothing_sigma > 0
+    smooth_frame = @(img) imgaussfilt(img,opts.smoothing_sigma);
+else
+    smooth_frame = @(img) img;
+end
 
 if opts.band_pass
     band_label = ['Bandpass ' num2str(opts.high_pass) '-' num2str(opts.low_pass) 'Hz'];
@@ -89,7 +98,7 @@ if ~is_volume
 
 for t=1:Tmax
 
-    imagesc(imresize(squeeze(fMRI_signal(:,:,:,t)),2)',[-colorlimitbar colorlimitbar])
+    imagesc(smooth_frame(squeeze(fMRI_signal(:,:,:,t)))',[-colorlimitbar colorlimitbar])
     axis image
     axis off
     axis xy
@@ -111,7 +120,7 @@ for t=1:Tmax
         idx = round(sizes3(dim)/(n_show+3)*(s+1));
 
         subplot(1,n_show,s)
-        imagesc(imresize(get_plane_image(vol_t, dim, idx),2),[-colorlimitbar colorlimitbar])
+        imagesc(smooth_frame(get_plane_image(vol_t, dim, idx)),[-colorlimitbar colorlimitbar])
         if dim ~= 3, axis xy; end
         axis image
         axis off
@@ -138,7 +147,7 @@ for t=1:Tmax
             idx = round(sizes3(dim)/(n_slices+3)*(s+1));
 
             subplot(n_slices,n_planes,(s-1)*n_planes+p)
-            imagesc(imresize(get_plane_image(vol_t, dim, idx),2),[-colorlimitbar colorlimitbar])
+            imagesc(smooth_frame(get_plane_image(vol_t, dim, idx)),[-colorlimitbar colorlimitbar])
             if dim ~= 3, axis xy; end
             axis image
             axis off
