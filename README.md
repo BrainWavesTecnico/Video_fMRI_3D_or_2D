@@ -4,7 +4,7 @@ MATLAB scripts to visualize the temporal evolution of fMRI signals from NIfTI fi
 
 ## Requirements
 
-- MATLAB with the Image Processing Toolbox (`niftiread`, `niftiinfo`, `imresize`) and the Signal Processing Toolbox is **not** required - bandpass filtering is done with a custom FFT-based implementation (`bandpass_fft.m`), no toolbox dependency.
+- MATLAB with the Image Processing Toolbox (`niftiread`, `niftiinfo`, `imresize`, `imgaussfilt`) and the Signal Processing Toolbox is **not** required - bandpass filtering is done with a custom FFT-based implementation (`bandpass_fft.m`), no toolbox dependency.
 - Each `.nii.gz` file should have a matching BIDS-style `.json` sidecar (as produced by `dcm2niix`) in the same folder, with a `RepetitionTime` field. If the JSON is missing, the script prompts for the TR manually instead of failing.
 
 ## Files
@@ -27,6 +27,7 @@ Open `Main_fMRI_Video.m` and edit the settings under **section 1** (marked `USER
 - `opts.Figures_and_Videos_folder` - single output folder for both the static `.jpeg` figures and the `.mp4` videos. Created automatically if it doesn't exist.
 - `opts.band_pass`, `opts.high_pass`, `opts.low_pass` - whether to bandpass filter, and the frequency band (Hz). The first/last 10 seconds are trimmed after filtering to remove edge artifacts.
 - `opts.select_colormap` - colormap used for the video (default `'jet'`).
+- `opts.smoothing_sigma` - standard deviation, in voxels, of the 2D Gaussian filter (`imgaussfilt`) applied to each video frame (default `1`; `0` for no smoothing).
 - `opts.max_voxel_anisotropy` - ratio threshold (default `1.5`) between the largest and smallest voxel dimension, above which a volume is treated as anisotropic (see below).
 - `opts.n_slices_single_plane` - how many equidistant slices to show for an anisotropic volume (default `6`).
 

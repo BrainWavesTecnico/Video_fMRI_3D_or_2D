@@ -45,6 +45,11 @@ end
 
 opts.select_colormap='jet'; % 'jet'; %'bipolar'; % 'redblue'
 
+% USER: spatial smoothing of each video frame: standard deviation (in
+% voxels) of the 2D Gaussian filter applied with imgaussfilt (0 for no
+% smoothing).
+opts.smoothing_sigma = 1;
+
 % USER: threshold for treating a volume's voxels as isotropic. If the
 % ratio between the largest and smallest voxel dimension exceeds this,
 % the scan is treated as anisotropic (thick slices, as in a typical
