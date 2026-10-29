@@ -167,7 +167,7 @@ if ~is_volume
         title('Signal variance in each voxel')
 
     psd_subplot = {2,2,3:4};
-elseif numel(planes) == 1
+elseif isscalar(planes)
     % Anisotropic: show several equidistant slices of the one acquired plane
     dim = planes(1).dim;
     n_show = opts.n_slices_single_plane;
